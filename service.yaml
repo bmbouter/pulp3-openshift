@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pulp-webserver
+spec:
+  selector:
+    name: pulp-webserver
+  ports:
+  - nodePort: 0
+    port: 8000
+    protocol: TCP
+    targetPort: 8000

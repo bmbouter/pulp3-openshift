@@ -1,0 +1,53 @@
+#!/bin/bash -e
+#
+# S2I run script for the 'python-35-centos7' image.
+# The run script executes the server that runs your application.
+#
+# For more information see the documentation:
+#	https://github.com/openshift/source-to-image/blob/master/docs/builder_image.md
+#
+
+cat > /var/lib/pulp/settings.yaml <<EOF
+REDIS:
+  HOST: $REDIS_IP
+  PORT: $REDIS_PORT
+  PASSWORD: $REDIS_PASSWORD
+DATABASES:
+  default:
+    CONN_MAX_AGE: 0
+    ENGINE: django.db.backends.postgresql_psycopg2
+    NAME: pulp
+    USER: pulp
+    PASSWORD: $POSTGRESQL_PASSWORD
+    HOST: $POSTGRESQL_HOST
+    PORT: $POSTGRESQL_PORT
+DEBUG: True
+SECRET_KEY: '$SECRET_KEY'
+EOF
+
+cat > /var/lib/pulp/rq_settings.py <<EOF
+REDIS_HOST = '$REDIS_IP'
+REDIS_PORT = $REDIS_PORT
+REDIS_PASSWORD = '$REDIS_PASSWORD'
+EOF
+
+pip freeze
+
+pulp-manager migrate --noinput auth
+pulp-manager migrate --noinput
+pulp-manager migrate --noinput pulp_ansible
+pulp-manager reset-admin-password --password put_your_pulp_password_here
+
+cd /var/lib/pulp/
+
+if [ "$PULP_PROCESS" == "RESOURCE_MANAGER" ]
+then
+    exec rq worker -n resource_manager@%h -w pulpcore.tasking.worker.PulpWorker -c rq_settings
+elif [ "$PULP_PROCESS" == "WORKER" ]
+then
+    exec rq worker -n reserved_resource_worker@%h -w pulpcore.tasking.worker.PulpWorker -c rq_settings
+elif [ "$PULP_PROCESS" == "WEBSERVER" ]
+then
+    exec pulp-manager runserver 0.0.0.0:8000
+fi
+

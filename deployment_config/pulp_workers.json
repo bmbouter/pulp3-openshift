@@ -1,0 +1,98 @@
+{
+  "kind": "DeploymentConfig",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "pulp-workers"
+  },
+  "spec": {
+    "strategy": {
+      "type": "Recreate"
+    },
+    "replicas": 1,
+    "selector": {
+      "name": "pulp-workers"
+    },
+    "template": {
+      "metadata": {
+        "name": "pulp-workers",
+        "labels": {
+          "name": "pulp-workers"
+        }
+      },
+      "spec": {
+	"volumes": [
+          {
+            "name": "pulp-filesystem-volume",
+	    "persistentVolumeClaim": {
+              "claimName": "pulp3-filesystem"
+	    }
+          }
+        ],
+        "containers": [
+          {
+            "name": "pulp-workers",
+            "image": "bmbouter/pulp_ansible:0.1.b2.33",
+	    "volumeMounts": [
+              {
+                "mountPath": "/var/lib/pulp",
+	        "name": "pulp-filesystem-volume"
+	      }
+	    ],
+            "env": [
+              {
+                "name": "PULP_PROCESS",
+                "value": "WORKER"
+              },
+              {
+                "name": "SECRET_KEY",
+                "value": "putyourreallylongsecretkeyhere"
+              },
+              {
+                "name": "DJANGO_SETTINGS_MODULE",
+                "value": "pulpcore.app.settings"
+              },
+              {
+                "name": "PULP_SETTINGS",
+                "value": "/var/lib/pulp/settings.yaml"
+              },
+              {
+                "name": "POSTGRESQL_HOST",
+                "value": "example.com"
+              },
+              {
+                "name": "POSTGRESQL_PORT",
+                "value": "5432"
+              },
+              {
+                "name": "POSTGRESQL_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef" : {
+                    "name" : "postgresql",
+                    "key" : "database-password"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_IP",
+                "value": "example.com"
+              },
+              {
+                "name": "REDIS_PORT",
+                "value": "6379"
+              },
+              {
+                "name": "REDIS_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef" : {
+                    "name" : "pulp3-redis",
+                    "key" : "database-password"
+                  }
+                }
+              }
+	    ]
+          }
+        ]
+      }
+    }
+  }
+}
